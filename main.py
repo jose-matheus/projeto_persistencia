@@ -20,3 +20,7 @@ def le_id_item(id: int):
 @app.get("/itens/")
 def le_item(item: Item):
     return item
+
+@app.get("/testando")
+def test_item(item: item):
+    return item
