@@ -95,26 +95,27 @@ def atualizar_consulta_csv(id: int, consulta: Consulta) -> Consulta:
             })
     return consulta_atualizada
 
-def excluir_consulta_csv(id: int) -> bool:
-    consultas = listar_consultas_csv(retornar_dicionario=False)
-    consultas_filtradas = [consulta for consulta in consultas if consulta.id != id]
-    
-    if len(consultas_filtradas) == len(consultas):
-        return False  # Nenhuma consulta foi excluída
-
-    with open(CSV_FILE, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["id", "paciente_id", "medico_id", "data_hora", "status", "observacoes"])
-        writer.writeheader()
-        for consulta in consultas_filtradas:
-            writer.writerow({
-                "id": consulta.id,
-                "paciente_id": consulta.paciente_id,
-                "medico_id": consulta.medico_id,
-                "data_hora": consulta.data_hora,
-                "status": consulta.status,
-                "observacoes": consulta.observacoes
-            })
-    return True
+def excluir_consulta_csv(id: int):
+    try:
+        with open(CSV_FILE, mode='r', newline='') as file:
+            linhas = list(csv.DictReader(file))
+        
+        for consulta in linhas:
+            if int(consulta["id"]) == id:
+                linhas.remove(consulta)  # Remove a consulta encontrada
+                with open(CSV_FILE, mode='w', newline='') as file:
+                    writer = csv.DictWriter(file, fieldnames=consulta.keys())
+                    writer.writeheader()
+                    writer.writerows(linhas)
+                return {"msg": "Consulta removida com sucesso."}
+        
+        # Caso não encontre a consulta
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Consulta não encontrada."
+        )
+    except Exception as e:
+        return {"error": f"Erro ao processar o arquivo: {str(e)}"}
 
 def compactar_csv_em_zip() -> BytesIO:
     zip_buffer = BytesIO()
