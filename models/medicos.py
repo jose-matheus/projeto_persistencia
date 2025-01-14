@@ -3,6 +3,7 @@ from pydantic import BaseModel, EmailStr
 from typing import List
 from datetime import datetime
 
+
 # Modelo base para o Médico
 class MedicoBase(BaseModel):
     nome: str
