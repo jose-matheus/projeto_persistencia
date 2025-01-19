@@ -22,9 +22,10 @@ class PacienteRetorno(PacienteBase):
     data_criacao: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Modelo do banco de dados para Paciente
 class Paciente(PacienteBase, SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     data_criacao: datetime = Field(default_factory=datetime.utcnow)  # Data de criação padrão
+    

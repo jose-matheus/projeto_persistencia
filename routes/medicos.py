@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from services.medicos import criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db, deletar_medico_db
+from services.medicos import criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db, deletar_medico_db, obter_medico_por_nome_db, listar_medicos_por_especialidade_db
 from models.medicos import MedicoCreate, MedicoRetorno
 from database import get_db
 
@@ -53,3 +53,25 @@ def deletar_medico(id: int, db: Session = Depends(get_db)):
         return {"msg": "Médico deletado com sucesso"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao deletar médico: {str(e)}")
+
+# Rota para obter médicos pelo nome
+@router.get("/medicos/buscar_por_nome/", response_model=list[MedicoRetorno])
+def obter_medico_por_nome(nome: str, db: Session = Depends(get_db)):
+    try:
+        # Chama a função correta do repositório ou serviço
+        medicos = obter_medico_por_nome_db(nome, db)
+        if not medicos:
+            raise HTTPException(status_code=404, detail="Nenhum médico encontrado com esse nome")
+        return medicos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos pelo nome: {str(e)}")
+
+@router.get("/medicos/especialidade/", response_model=list[MedicoRetorno])
+def listar_medicos_por_especialidade(especialidade: str, db: Session = Depends(get_db)):
+    try:
+        medicos = listar_medicos_por_especialidade_db(especialidade, db)
+        if not medicos:
+            raise HTTPException(status_code=404, detail="Nenhum médico encontrado para esta especialidade")
+        return medicos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos por especialidade: {str(e)}")

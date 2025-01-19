@@ -19,7 +19,7 @@ class MedicoRetorno(MedicoBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Modelo do banco de dados para Medico
 class Medico(MedicoBase, SQLModel, table=True):

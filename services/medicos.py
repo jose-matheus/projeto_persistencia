@@ -37,3 +37,11 @@ def deletar_medico_db(id: int, db: Session) -> bool:
         db.commit()
         return True
     return False
+
+# Função para obter médicos pelo nome
+def obter_medico_por_nome_db(nome: str, db: Session):
+    return db.query(Medico).filter(Medico.nome.ilike(f"%{nome}%")).all()
+
+
+def listar_medicos_por_especialidade_db(especialidade: str, db: Session):
+    return db.query(Medico).filter(Medico.especialidade.ilike(f"%{especialidade}%")).all()

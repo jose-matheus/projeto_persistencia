@@ -1,6 +1,7 @@
 from sqlmodel import Session
 from models.consultas import Consulta, ConsultaCreate
 from models.medicos import Medico  # Importando o modelo de Medico
+from models.paciente import PacienteRetorno
 from database import get_db
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
@@ -62,3 +63,10 @@ def excluir_consulta_db(id: int, db: Session) -> bool:
         db.commit()
         return True
     return False
+
+def listar_consultas_por_paciente(paciente_id: int, db: Session):
+    return db.query(Consulta).filter(Consulta.paciente_id == paciente_id).all()
+
+def listar_pacientes_sem_consultas_db(db: Session):
+    return db.query(Paciente).outerjoin(Consulta, Paciente.id == Consulta.paciente_id)\
+             .filter(Consulta.id == None).all()

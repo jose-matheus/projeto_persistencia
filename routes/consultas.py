@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models.consultas import ConsultaCreate, Consulta
+from models.paciente import Paciente
 from services.consultas import (
     adicionar_consulta_db, listar_consultas_db, buscar_consulta_por_id_db,
-    atualizar_consulta_db, excluir_consulta_db
+    atualizar_consulta_db, excluir_consulta_db, listar_consultas_por_paciente,
+    listar_pacientes_sem_consultas_db
 )
 from database import get_db
 
@@ -72,3 +74,23 @@ def excluir_consulta(id: int, db: Session = Depends(get_db)):
     except Exception as e:
         # Erro geral ao excluir a consulta
         raise HTTPException(status_code=500, detail=f"Erro ao excluir consulta: {str(e)}")
+
+@router.get("/pacientes/{paciente_id}/consultas/", response_model=list[Consulta])
+def listar_consultas_por_paciente_endpoint(paciente_id: int, db: Session = Depends(get_db)):
+    try:
+        consultas = listar_consultas_por_paciente(paciente_id, db)
+        if not consultas:
+            raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para este paciente")
+        return consultas
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar consultas: {str(e)}")
+
+@router.get("/pacientes/sem-consultas/", response_model=list[Paciente])
+def listar_pacientes_sem_consultas(db: Session = Depends(get_db)):
+    try:
+        pacientes = listar_pacientes_sem_consultas_db(db)
+        if not pacientes:
+            raise HTTPException(status_code=404, detail="Nenhum paciente sem consultas encontrado")
+        return pacientes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")
