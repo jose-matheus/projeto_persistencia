@@ -1,0 +1,10 @@
+id,paciente_id,medico_id,data_hora,status,observacoes
+1,1001,2001,2024-12-01 09:00:00,Ativa,Consulta de rotina anual
+2,1002,2002,2024-12-02 10:30:00,Ativa,Avaliação pós-cirúrgica
+3,1003,2003,2024-12-03 14:00:00,Concluída,Encaminhamento para especialista
+4,1004,2004,2024-12-04 15:00:00,Cancelada,Paciente não compareceu
+5,1005,2005,2024-12-05 11:00:00,Ativa,Consulta pediátrica
+6,1006,2006,2024-12-06 13:00:00,Ativa,Consulta dermatológica para avaliação de manchas
+7,1007,2007,2024-12-07 09:30:00,Concluída,Prescrição de medicamentos
+8,1008,2008,2024-12-08 16:00:00,Cancelada,Consulta reagendada pelo médico
+9,1009,2009,2024-12-09 08:00:00,Ativa,Consulta oftalmológica

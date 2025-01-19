@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from models.medicos import Medico, MedicoCreate
-from models.paciente import Paciente
+from models.paciente import Paciente, PacienteMedico
 from sqlmodel import select
 from fastapi import HTTPException
-from typing import List
+from typing import List, Dict
 
 # Função para criar um médico
 def criar_medico_db(medico: MedicoCreate, db: Session) -> Medico:
@@ -49,23 +49,48 @@ def obter_medico_por_nome_db(nome: str, db: Session):
 def listar_medicos_por_especialidade_db(especialidade: str, db: Session):
     return db.query(Medico).filter(Medico.especialidade.ilike(f"%{especialidade}%")).all()
 
-def listar_pacientes_por_medico(medico_id: int, db: Session) -> List[dict]:
-    # Consulta para obter o médico e seus pacientes
-    statement = select(Medico).where(Medico.id == medico_id)
-    medico = db.exec(statement).one_or_none()  # Agora deve retornar um único objeto
+def listar_pacientes_por_medico(medico_id: int, db: Session) -> List[Dict]:
     
-    resultado = []
-    
-    # Para cada paciente do médico, pega as informações
-    for paciente in medico.pacientes:  # Acessa a lista de pacientes do médico
-        paciente_info = {
+    # Consulta para obter os pacientes associados ao médico
+    statement = select(Paciente).join(PacienteMedico).where(PacienteMedico.medico_id == medico_id)
+    pacientes = db.exec(statement).all()
+
+    if not pacientes:
+        return []  # Retorna lista vazia se não houver pacientes encontrados para o médico
+
+    # Constrói a lista de pacientes com as informações relevantes
+    resultado = [
+        {
             "paciente_id": paciente.id,
             "nome": paciente.nome,
             "telefone": paciente.telefone,
-            "email": paciente.email
+            "email": paciente.email,
         }
-        resultado.append(paciente_info)
-    
+        for paciente in pacientes
+    ]
+
     return resultado
 
-
+def associar_paciente_a_medico(paciente_id: int, medico_id: int, db: Session):
+    # Buscando o paciente e o médico
+    paciente = db.query(Paciente).filter(Paciente.id == paciente_id).first()
+    medico = db.query(Medico).filter(Medico.id == medico_id).first()
+    
+    # Verificando se o paciente e o médico existem
+    if not paciente:
+        raise ValueError(f"Paciente com ID {paciente_id} não encontrado.")
+    if not medico:
+        raise ValueError(f"Médico com ID {medico_id} não encontrado.")
+    
+    # Verificando se a relação já existe
+    if medico in paciente.medicos:
+        raise ValueError(f"Paciente {paciente.nome} já está associado ao médico {medico.nome}.")
+    
+    # Associando o paciente ao médico
+    paciente.medicos.append(medico)
+    
+    # Salvar as alterações no banco de dados
+    db.add(paciente)
+    db.commit()
+    
+    return paciente

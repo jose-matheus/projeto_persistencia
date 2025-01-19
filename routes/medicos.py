@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from services.medicos import criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db, deletar_medico_db, obter_medico_por_nome_db, listar_medicos_por_especialidade_db, listar_pacientes_por_medico
+from services.medicos import criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db, deletar_medico_db, obter_medico_por_nome_db, listar_medicos_por_especialidade_db, listar_pacientes_por_medico, associar_paciente_a_medico
 from models.medicos import MedicoCreate, MedicoRetorno
 from database import get_db
+from typing import List, Dict
 
 router = APIRouter()
 
@@ -76,12 +77,28 @@ def listar_medicos_por_especialidade(especialidade: str, db: Session = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos por especialidade: {str(e)}")
     
-@router.get("/medico/{medico_id}/pacientes/", response_model=list[dict])
-def consultar_pacientes_por_medico(medico_id: int, db: Session = Depends(get_db)):
+@router.get("/medicos/{medico_id}/pacientes", response_model=List[Dict])
+def obter_pacientes_por_medico(medico_id: int, db: Session = Depends(get_db)):
+    """
+    Endpoint para listar os pacientes de um médico específico.
+
+    :param medico_id: ID do médico.
+    :param db: Sessão do banco de dados.
+    :return: Lista de pacientes do médico.
+    """
+    pacientes = listar_pacientes_por_medico(medico_id, db)
+    if not pacientes:
+        raise HTTPException(status_code=404, detail="Nenhum paciente encontrado para este médico.")
+    return pacientes
+
+@router.post("/medicos/{medico_id}/pacientes/{paciente_id}")
+def adicionar_paciente_ao_medico(
+    paciente_id: int,
+    medico_id: int,
+    db: Session = Depends(get_db)
+):
     try:
-        pacientes = listar_pacientes_por_medico(medico_id, db)
-        if not pacientes:
-            raise HTTPException(status_code=404, detail="Nenhum paciente encontrado para o médico.")
-        return pacientes
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")
+        paciente_associado = associar_paciente_a_medico(paciente_id, medico_id, db)
+        return {"msg": f"Paciente {paciente_associado.nome} foi associado ao médico com sucesso!"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
