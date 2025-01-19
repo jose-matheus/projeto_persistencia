@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from pydantic import BaseModel, EmailStr
 from typing import List
 from datetime import datetime
-
+from models.paciente import PacienteMedico  # Importando o link_model de PacienteMedico
 
 # Modelo base para o Médico
 class MedicoBase(BaseModel):
@@ -28,3 +28,6 @@ class Medico(MedicoBase, SQLModel, table=True):
 
     # Relacionamento com consultas
     consultas: List["Consulta"] = Relationship(back_populates="medico")
+    
+    # Relacionamento muitos para muitos com Pacientes
+    pacientes: List["Paciente"] = Relationship(back_populates="medicos", link_model=PacienteMedico)  # link_model faz a ligação com PacienteMedico

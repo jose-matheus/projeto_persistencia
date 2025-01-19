@@ -10,6 +10,7 @@ criar_tabelas()
 
 app = FastAPI()
 
+
 # Incluindo as rotas
 app.include_router(pacientes_router)
 app.include_router(consultas_router)

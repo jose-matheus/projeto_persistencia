@@ -6,8 +6,9 @@ from services.paciente import (
     obter_paciente_db,
     atualizar_paciente_db,
     deletar_paciente_db,
+    obter_paciente_com_consultas_db
 )
-from models.paciente import PacienteCreate, PacienteRetorno
+from models.paciente import PacienteCreate, PacienteRetorno, PacienteComConsultas
 from database import get_db
 
 router = APIRouter()
@@ -59,3 +60,13 @@ def deletar_paciente(id: int, db: Session = Depends(get_db)):
         return {"msg": "Paciente deletado com sucesso"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao deletar paciente: {str(e)}")
+    
+@router.get("/pacientes/{id}/consultas", response_model=PacienteComConsultas)
+def obter_paciente_com_consultas(id: int, db: Session = Depends(get_db)):
+    try:
+        paciente = obter_paciente_com_consultas_db(id, db)
+        if not paciente:
+            raise HTTPException(status_code=404, detail="Paciente não encontrado")
+        return paciente
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter paciente com consultas: {str(e)}")

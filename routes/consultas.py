@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from models.consultas import ConsultaCreate, Consulta
 from models.paciente import Paciente
 from services.consultas import (
     adicionar_consulta_db, listar_consultas_db, buscar_consulta_por_id_db,
-    atualizar_consulta_db, excluir_consulta_db, listar_consultas_por_paciente,
-    listar_pacientes_sem_consultas_db
+    atualizar_consulta_db, excluir_consulta_db, listar_consultas_por_paciente_db,
+    listar_pacientes_sem_consultas_db, listar_consultas_por_periodo_db,
+    listar_consultas_com_pacientes
 )
 from database import get_db
+from datetime import datetime
+
 
 router = APIRouter()
 
@@ -76,9 +79,9 @@ def excluir_consulta(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Erro ao excluir consulta: {str(e)}")
 
 @router.get("/pacientes/{paciente_id}/consultas/", response_model=list[Consulta])
-def listar_consultas_por_paciente_endpoint(paciente_id: int, db: Session = Depends(get_db)):
+def listar_consultas_por_paciente(paciente_id: int, db: Session = Depends(get_db)):
     try:
-        consultas = listar_consultas_por_paciente(paciente_id, db)
+        consultas = listar_consultas_por_paciente_db(paciente_id, db)
         if not consultas:
             raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para este paciente")
         return consultas
@@ -94,3 +97,36 @@ def listar_pacientes_sem_consultas(db: Session = Depends(get_db)):
         return pacientes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")
+    
+@router.get("/consultas/periodo/", response_model=list[Consulta])
+def listar_consultas_por_periodo(
+    inicio: datetime = Query(..., description="Data e hora de início no formato ISO8601"),
+    fim: datetime = Query(..., description="Data e hora de fim no formato ISO8601"),
+    db: Session = Depends(get_db)
+):
+    try:
+        consultas = listar_consultas_por_periodo_db(inicio, fim, db)
+        if not consultas:
+            raise HTTPException(
+                status_code=404,
+                detail="Nenhuma consulta encontrada no período especificado."
+            )
+        return consultas
+    except HTTPException as e:
+        raise e  # Relevanta erro HTTP específico.
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar consultas: {str(e)}"
+        )
+    
+
+@router.get("/medico/{medico_id}/consultas/", response_model=list[dict])
+def consultar_consultas_pacientes(medico_id: int, db: Session = Depends(get_db)):
+    try:
+        consultas_com_pacientes = listar_consultas_com_pacientes(medico_id, db)
+        if not consultas_com_pacientes:
+            raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para o médico.")
+        return consultas_com_pacientes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar consultas: {str(e)}")

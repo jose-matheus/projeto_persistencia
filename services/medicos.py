@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
 from models.medicos import Medico, MedicoCreate
+from models.paciente import Paciente
 from sqlmodel import select
+from fastapi import HTTPException
+from typing import List
 
 # Função para criar um médico
 def criar_medico_db(medico: MedicoCreate, db: Session) -> Medico:
@@ -45,3 +48,24 @@ def obter_medico_por_nome_db(nome: str, db: Session):
 
 def listar_medicos_por_especialidade_db(especialidade: str, db: Session):
     return db.query(Medico).filter(Medico.especialidade.ilike(f"%{especialidade}%")).all()
+
+def listar_pacientes_por_medico(medico_id: int, db: Session) -> List[dict]:
+    # Consulta para obter o médico e seus pacientes
+    statement = select(Medico).where(Medico.id == medico_id)
+    medico = db.exec(statement).one_or_none()  # Agora deve retornar um único objeto
+    
+    resultado = []
+    
+    # Para cada paciente do médico, pega as informações
+    for paciente in medico.pacientes:  # Acessa a lista de pacientes do médico
+        paciente_info = {
+            "paciente_id": paciente.id,
+            "nome": paciente.nome,
+            "telefone": paciente.telefone,
+            "email": paciente.email
+        }
+        resultado.append(paciente_info)
+    
+    return resultado
+
+

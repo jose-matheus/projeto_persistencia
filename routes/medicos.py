@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from services.medicos import criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db, deletar_medico_db, obter_medico_por_nome_db, listar_medicos_por_especialidade_db
+from services.medicos import criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db, deletar_medico_db, obter_medico_por_nome_db, listar_medicos_por_especialidade_db, listar_pacientes_por_medico
 from models.medicos import MedicoCreate, MedicoRetorno
 from database import get_db
 
@@ -75,3 +75,13 @@ def listar_medicos_por_especialidade(especialidade: str, db: Session = Depends(g
         return medicos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos por especialidade: {str(e)}")
+    
+@router.get("/medico/{medico_id}/pacientes/", response_model=list[dict])
+def consultar_pacientes_por_medico(medico_id: int, db: Session = Depends(get_db)):
+    try:
+        pacientes = listar_pacientes_por_medico(medico_id, db)
+        if not pacientes:
+            raise HTTPException(status_code=404, detail="Nenhum paciente encontrado para o médico.")
+        return pacientes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")

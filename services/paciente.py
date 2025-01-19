@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
-from models.paciente import Paciente, PacienteCreate
+from models.paciente import Paciente, PacienteCreate, PacienteComConsultas
 from sqlmodel import select
+from sqlalchemy.orm import joinedload
 
 # Função para criar um paciente
 def criar_paciente_db(paciente: PacienteCreate, db: Session) -> Paciente:
@@ -37,3 +38,11 @@ def deletar_paciente_db(id: int, db: Session) -> bool:
         db.commit()
         return True
     return False
+
+def obter_paciente_com_consultas_db(id: int, db: Session) -> Paciente:
+    return (
+        db.query(Paciente)
+        .options(joinedload(Paciente.consultas))  # Supondo que a relação seja "consultas"
+        .filter(Paciente.id == id)
+        .first()
+    )
