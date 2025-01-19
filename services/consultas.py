@@ -73,12 +73,11 @@ def listar_pacientes_sem_consultas_db(db: Session):
              .filter(Consulta.id == None).all()
 
 def listar_consultas_por_periodo_db(inicio: datetime, fim: datetime, db: Session):
-    # Garantir que o status seja "Agendada"
     consultas = db.query(Consulta).filter(
         Consulta.data_hora >= inicio,
-        Consulta.data_hora <= fim,
-        Consulta.status == "Agendada"
+        Consulta.data_hora <= fim
     ).all()
+    return consultas
 
 
 def listar_consultas_com_pacientes(medico_id: int, db: Session) -> list[dict]:
