@@ -1,90 +1,77 @@
-from sqlalchemy.orm import Session
-from models.medicos import Medico, MedicoCreate
-from models.paciente import Paciente, PacienteMedico
-from sqlmodel import select
 from fastapi import HTTPException
+from models.medicos import Medico, MedicoCreate
+from models.paciente import Paciente
 from typing import List, Dict
+from beanie import PydanticObjectId
+from bson import ObjectId
 
 # Função para criar um médico
-def criar_medico_db(medico: MedicoCreate, db: Session) -> Medico:
+async def criar_medico_db(medico: MedicoCreate) -> Medico:
     db_medico = Medico(**medico.dict())
-    db.add(db_medico)
-    db.commit()
-    db.refresh(db_medico)
+    await db_medico.insert()
     return db_medico
 
 # Função para listar todos os médicos
-def listar_medicos_db(db: Session):
-    return db.execute(select(Medico)).scalars().all()
+async def listar_medicos_db():
+    return await Medico.find().to_list()
 
 # Função para obter um médico pelo ID
-def obter_medico_db(id: int, db: Session) -> Medico:
-    return db.query(Medico).filter(Medico.id == id).first()
+async def obter_medico_db(id: str) -> Medico:
+    db_medico = await Medico.get(id)
+    if not db_medico:
+        raise HTTPException(status_code=404, detail="Médico não encontrado")
+    return db_medico
 
 # Função para atualizar um médico
-def atualizar_medico_db(id: int, medico: MedicoCreate, db: Session) -> Medico:
-    db_medico = db.query(Medico).filter(Medico.id == id).first()
-    if db_medico:
-        for key, value in medico.dict().items():
-            setattr(db_medico, key, value)
-        db.commit()
-        db.refresh(db_medico)
-        return db_medico
-    return None
+async def atualizar_medico_db(id: str, medico: MedicoCreate) -> Medico:
+    result = await Medico.get(id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Médico não encontrado")
+    
+    await result.update({"$set": medico.dict(exclude_unset=True)})
+    return result
 
 # Função para deletar um médico
-def deletar_medico_db(id: int, db: Session) -> bool:
-    db_medico = db.query(Medico).filter(Medico.id == id).first()
-    if db_medico:
-        db.delete(db_medico)
-        db.commit()
-        return True
-    return False
+async def deletar_medico_db(id: str) -> bool:
+    medico = await Medico.get(id)
+    if not medico:
+        return False
+    await medico.delete()
+    return True
 
 # Função para obter médicos pelo nome
-def obter_medico_por_nome_db(nome: str, db: Session):
-    return db.query(Medico).filter(Medico.nome.ilike(f"%{nome}%")).all()
+async def obter_medico_por_nome_db(nome: str):
+    return await Medico.find({"nome": {"$regex": nome, "$options": "i"}}).to_list()
 
-#Função para listar os médicos por especialidade
-def listar_medicos_por_especialidade_db(especialidade: str, db: Session):
-    return db.query(Medico).filter(Medico.especialidade.ilike(f"%{especialidade}%")).all()
+# Função para listar os médicos por especialidade
+async def listar_medicos_por_especialidade_db(especialidade: str):
+    return await Medico.find({"especialidade": {"$regex": especialidade, "$options": "i"}}).to_list()
 
-#Função para listar os pacientes de um médico
-def listar_pacientes_por_medico(medico_id: int, db: Session) -> List[Dict]:
-    statement = select(Paciente).join(PacienteMedico).where(PacienteMedico.medico_id == medico_id)
-    pacientes = db.exec(statement).all()
+# Função para listar os pacientes de um médico
+async def listar_pacientes_por_medico(medico_id: str) -> List[Dict]:
+    pacientes = await Paciente.find({"medicos": str(medico_id)}).to_list()
+    return [{"paciente_id": str(paciente.id), "nome": paciente.nome} for paciente in pacientes]
 
-    if not pacientes:
-        return [] 
+# Função que vai associar o paciente ao médico da sua consulta
+async def associar_paciente_a_medico(paciente_id: str, medico_id: str):
+    paciente = await Paciente.get(paciente_id)
+    medico = await Medico.get(medico_id)
 
-    resultado = [
-        {
-            "paciente_id": paciente.id,
-            "nome": paciente.nome,
-            "telefone": paciente.telefone,
-            "email": paciente.email,
-        }
-        for paciente in pacientes
-    ]
-
-    return resultado
-
-#Função que vai associar o paciente ao médico da sua consulta
-def associar_paciente_a_medico(paciente_id: int, medico_id: int, db: Session):
-    paciente = db.query(Paciente).filter(Paciente.id == paciente_id).first()
-    medico = db.query(Medico).filter(Medico.id == medico_id).first()
-    
     if not paciente:
-        raise ValueError(f"Paciente com ID {paciente_id} não encontrado.")
+        raise HTTPException(status_code=404, detail=f"Paciente com ID {paciente_id} não encontrado.")
     if not medico:
-        raise ValueError(f"Médico com ID {medico_id} não encontrado.")
+        raise HTTPException(status_code=404, detail=f"Médico com ID {medico_id} não encontrado.")
     
-    if medico in paciente.medicos:
-        raise ValueError(f"Paciente {paciente.nome} já está associado ao médico {medico.nome}.")
-    
-    paciente.medicos.append(medico)
-    
-    db.add(paciente)
-    db.commit()
-    
-    return paciente
+    # Associa paciente ao médico
+    paciente.medicos.append(medico.id)
+    medico.pacientes.append(paciente.id)
+
+    # Atualiza os documentos de paciente e médico
+    await paciente.save()
+    await medico.save()
+
+    return {"paciente_id": paciente.id,
+        "medico_id": medico.id,
+        "paciente_nome": paciente.nome,  # Adicionando nome do paciente
+        "medico_nome": medico.nome       # Adicionando nome do médico
+        }

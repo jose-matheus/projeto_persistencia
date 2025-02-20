@@ -1,18 +1,37 @@
-# database/database.py
+from motor.motor_asyncio import AsyncIOMotorClient
+from fastapi import Depends
+from typing import AsyncGenerator
+from beanie import init_beanie
+from models.consultas import Consulta  # Ajuste de acordo com seus modelos importados
+from models.medicos import Medico
+from models.paciente import Paciente
 
-from sqlmodel import create_engine, Session, SQLModel
+# URL de conexão com o MongoDB
+MONGO_URL = "mongodb://localhost:27017"  # Altere para o seu MongoDB URL se necessário
+DB_NAME = "banco"  # Altere para o nome do seu banco
 
-# Configuração do banco de dados (exemplo com SQLite)
-SQLALCHEMY_DATABASE_URL = "sqlite:///./database.db"  # Caminho para o banco SQLite
+# Instância do cliente assíncrono MongoDB
+client = AsyncIOMotorClient(MONGO_URL)
 
-# Criação do engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+# Banco de dados
+db = client[DB_NAME]
 
-# Função para criar as tabelas no banco de dados
-def criar_tabelas():
-    SQLModel.metadata.create_all(bind=engine)
+# Função para obter o banco de dados (assíncrona)
+def get_db() -> AsyncGenerator:
+    try:
+        yield db
+    finally:
+        pass
 
-# Função para obter a sessão do banco de dados
-def get_db():
-    with Session(engine) as session:
-        yield session
+# Função para inicializar o Beanie com a base de dados
+async def init_database():
+    await init_beanie(
+        database=db,
+        document_models=[Consulta, Medico, Paciente]  # Inclua todos os modelos que você usou no seu código
+    )
+
+# Função para criar ou inicializar coleções, caso necessário
+async def criar_tabelas():
+    # Não é necessário criar coleções explicitamente com o Beanie, pois ele já cria as coleções automaticamente
+    # quando você começa a usar os documentos
+    pass

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from beanie import PydanticObjectId
 from services.paciente import (
     criar_paciente_db,
     listar_pacientes_db,
@@ -9,31 +9,32 @@ from services.paciente import (
     obter_paciente_com_consultas_db
 )
 from models.paciente import PacienteCreate, PacienteRetorno, PacienteComConsultas
-from database import get_db
+from database.database import get_db
 
 router = APIRouter()
 
 # Rota para criar paciente
 @router.post("/pacientes/", response_model=PacienteRetorno)
-def criar_paciente(paciente: PacienteCreate, db: Session = Depends(get_db)):
+async def criar_paciente(paciente: PacienteCreate):
     try:
-        return criar_paciente_db(paciente, db)
+        return await criar_paciente_db(paciente)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao criar paciente: {str(e)}")
 
 # Rota para listar pacientes
 @router.get("/pacientes/", response_model=list[PacienteRetorno])
-def listar_pacientes(db: Session = Depends(get_db)):
+async def listar_pacientes(db=Depends(get_db)):
     try:
-        return listar_pacientes_db(db)
+        pacientes = await listar_pacientes_db()
+        return pacientes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar pacientes: {str(e)}")
 
 # Rota para obter paciente pelo ID
 @router.get("/pacientes/{id}", response_model=PacienteRetorno)
-def obter_paciente(id: int, db: Session = Depends(get_db)):
+async def obter_paciente(id: str):
     try:
-        paciente = obter_paciente_db(id, db)
+        paciente = await obter_paciente_db(id)
         if not paciente:
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
         return paciente
@@ -42,9 +43,9 @@ def obter_paciente(id: int, db: Session = Depends(get_db)):
 
 # Rota para atualizar paciente
 @router.put("/pacientes/{id}", response_model=PacienteRetorno)
-def atualizar_paciente(id: int, paciente: PacienteCreate, db: Session = Depends(get_db)):
+async def atualizar_paciente(id: str, paciente: PacienteCreate):
     try:
-        paciente_atualizado = atualizar_paciente_db(id, paciente, db)
+        paciente_atualizado = await atualizar_paciente_db(id, paciente)
         if not paciente_atualizado:
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
         return paciente_atualizado
@@ -53,9 +54,9 @@ def atualizar_paciente(id: int, paciente: PacienteCreate, db: Session = Depends(
 
 # Rota para deletar paciente
 @router.delete("/pacientes/{id}")
-def deletar_paciente(id: int, db: Session = Depends(get_db)):
+async def deletar_paciente(id: str):
     try:
-        if not deletar_paciente_db(id, db):
+        if not await deletar_paciente_db(id):
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
         return {"msg": "Paciente deletado com sucesso"}
     except Exception as e:
@@ -63,9 +64,9 @@ def deletar_paciente(id: int, db: Session = Depends(get_db)):
 
 # Rota para listar os pacientes com suas consultas    
 @router.get("/pacientes/{id}/consultas", response_model=PacienteComConsultas)
-def obter_paciente_com_consultas(id: int, db: Session = Depends(get_db)):
+async def obter_paciente_com_consultas(id: str):
     try:
-        paciente = obter_paciente_com_consultas_db(id, db)
+        paciente = await obter_paciente_com_consultas_db(id)
         if not paciente:
             raise HTTPException(status_code=404, detail="Paciente não encontrado")
         return paciente

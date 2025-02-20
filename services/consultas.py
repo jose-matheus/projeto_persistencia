@@ -1,96 +1,126 @@
-from sqlmodel import Session, select
-from models.consultas import Consulta, ConsultaCreate
-from models.medicos import Medico
-from models.paciente import Paciente
-from database import get_db
-from sqlalchemy.exc import SQLAlchemyError
+from bson import ObjectId
 from fastapi import HTTPException
 from datetime import datetime
+from models.consultas import ConsultaCreate, ConsultaResponse
+from models.medicos import Medico
+from models.paciente import Paciente
+from models.consultas import Consulta
+from beanie import PydanticObjectId
 
-#Função para adicionar consulta no banco de dados
-def adicionar_consulta_db(consulta: ConsultaCreate, db: Session) -> Consulta:
-    medico = db.query(Medico).filter(Medico.id == consulta.medico_id).first()
+# Função para adicionar consulta no banco de dados
+async def adicionar_consulta_db(consulta_data: ConsultaCreate):
+    # Criar nova consulta
+    nova_consulta = Consulta(**consulta_data.dict())
+    await nova_consulta.save()
+
+    # Obter paciente e médico
+    paciente = await Paciente.get(nova_consulta.paciente_id)
+    medico = await Medico.get(nova_consulta.medico_id)
+
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente não encontrado")
     if not medico:
         raise HTTPException(status_code=404, detail="Médico não encontrado")
-    
-    db_consulta = Consulta(**consulta.dict())
-    db.add(db_consulta)
-    db.commit()
-    db.refresh(db_consulta)
-    return db_consulta
 
-#Função para listar todas as consultas
-def listar_consultas_db(db: Session):
-    consultas = db.query(Consulta).all()
-    return {
-        "consultas": consultas,
-        "quantidade": len(consultas)
-    }
+    # Adicionar consulta ao paciente e ao médico
+    paciente.consultas.append(nova_consulta.id)
+    medico.consultas.append(nova_consulta.id)
 
-#Função para buscar consulta por ID
-def buscar_consulta_por_id_db(id: int, db: Session) -> Consulta:
-    consulta = db.query(Consulta).filter(Consulta.id == id).first()
+    await paciente.save()
+    await medico.save()
+
+    return nova_consulta
+
+# Função para listar todas as consultas
+async def listar_consultas_db():
+    consultas = await Consulta.find().to_list()
+    return ConsultaResponse(consultas=consultas, quantidade=len(consultas))
+
+# Função para buscar consulta por ID
+async def buscar_consulta_por_id_db(id: str):
+    consulta = await Consulta.get(id)
     return consulta
 
-#Função para atualizar consulta no banco de dados
-def atualizar_consulta_db(id: int, consulta: ConsultaCreate, db: Session) -> Consulta:
-    medico = db.query(Medico).filter(Medico.id == consulta.medico_id).first()
+# Função para atualizar consulta no banco de dados
+async def atualizar_consulta_db(id: str, consulta: ConsultaCreate):
+    medico = await Medico.get(consulta.medico_id)
+    if not medico:
+        raise HTTPException(status_code=404, detail="Médico não encontrado")
+
+    update_data = {k: v for k, v in consulta.dict(exclude_unset=True).items()}
+    update_data["paciente_id"] = str(update_data["paciente_id"])
+    update_data["medico_id"] = str(update_data["medico_id"])
+
+    consulta_atualizada = await Consulta.get(id)
+    if not consulta_atualizada:
+        raise HTTPException(status_code=404, detail="Consulta não encontrada")
+
+    await consulta_atualizada.update({"$set": update_data})
+    return await Consulta.get(id)
+
+# Função para excluir consulta no banco de dados
+async def excluir_consulta_db(id: str):
+    consulta = await Consulta.get(id)
+    if not consulta:
+        raise HTTPException(status_code=404, detail="Consulta não encontrada")
+    
+    # Obter paciente e médico associados à consulta
+    paciente = await Paciente.get(consulta.paciente_id)
+    medico = await Medico.get(consulta.medico_id)
+
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente não encontrado")
     if not medico:
         raise HTTPException(status_code=404, detail="Médico não encontrado")
     
-    db_consulta = db.query(Consulta).filter(Consulta.id == id).first()
+    # Remover a consulta das listas de consultas do paciente e do médico
+    paciente.consultas = [consulta_id for consulta_id in paciente.consultas if consulta_id != consulta.id]
+    medico.consultas = [consulta_id for consulta_id in medico.consultas if consulta_id != consulta.id]
 
-    if not db_consulta:
-        raise HTTPException(status_code=404, detail="Consulta não encontrada")
-    
-    for key, value in consulta.dict(exclude_unset=True).items():
-        setattr(db_consulta, key, value)
+    # Salvar as alterações no paciente e no médico
+    await paciente.save()
+    await medico.save()
 
-    db.commit()
-    db.refresh(db_consulta)
+    # Excluir a consulta
+    await consulta.delete()
 
-    return db_consulta
+    return True
 
-#Função para excluir consulta no banco de dados
-def excluir_consulta_db(id: int, db: Session) -> bool:
-    db_consulta = db.query(Consulta).filter(Consulta.id == id).first()
-    if db_consulta:
-        db.delete(db_consulta)
-        db.commit()
-        return True
-    return False
-    
-#Função para listaras consultas do paciente
-def listar_consultas_por_paciente_db(paciente_id: int, db: Session):
-    return db.query(Consulta).filter(Consulta.paciente_id == paciente_id).all()
-
-#Função para listar os pacientes sem consultas
-def listar_pacientes_sem_consultas_db(db: Session):
-    return db.query(Paciente).outerjoin(Consulta, Paciente.id == Consulta.paciente_id)\
-             .filter(Consulta.id == None).all()
-
-#Função para listar todas as consultas dentro de um periodo
-def listar_consultas_por_periodo_db(inicio: datetime, fim: datetime, db: Session):
-    consultas = db.query(Consulta).filter(
-        Consulta.data_hora >= inicio,
-        Consulta.data_hora <= fim
-    ).all()
+# Função para listar consultas de um paciente
+async def listar_consultas_por_paciente_db(paciente_id: str):
+    consultas = await Consulta.find({"paciente_id": str(paciente_id)}).to_list()
     return consultas
 
+# Função para listar pacientes sem consultas
+async def listar_pacientes_sem_consultas_db():
+    pacientes = await Paciente.find().to_list()
+    pacientes_sem_consultas = []
+    for paciente in pacientes:
+        consultas = await Consulta.find({"paciente_id": paciente.id}).to_list()
+        if not consultas:
+            pacientes_sem_consultas.append(paciente)
 
-def listar_consultas_com_pacientes(medico_id: int, db: Session) -> list[dict]:
-    statement = select(Consulta).join(Consulta.medico).where(Medico.id == medico_id)
-    consultas = db.exec(statement).all()
+    return pacientes_sem_consultas
 
+# Função para listar todas as consultas dentro de um período
+async def listar_consultas_por_periodo_db(inicio: datetime, fim: datetime):
+    consultas = await Consulta.find({
+        "data_hora": {"$gte": inicio, "$lte": fim}
+    }).to_list()
+    return consultas
+
+# Função para listar consultas com pacientes para um médico
+async def listar_consultas_com_pacientes(medico_id: str):
+    consultas = await Consulta.find({"medico_id": str(medico_id)}).to_list()
     resultado = []
-    
     for consulta in consultas:
+        paciente = await Paciente.get(consulta.paciente_id)
         consulta_info = {
-            "consulta_id": consulta.id,
-            "paciente": consulta.paciente.nome,
+            "consulta_id": str(consulta.id),
+            "paciente": paciente.nome if paciente else "Desconhecido",
             "status": consulta.status,
             "data": consulta.data_hora
         }
         resultado.append(consulta_info)
-    
+
     return resultado

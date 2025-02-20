@@ -1,13 +1,14 @@
-from sqlmodel import SQLModel, Field, Relationship
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List, TYPE_CHECKING
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
 from datetime import datetime
-from models.consultas import Consulta
+from bson import ObjectId
+from beanie import Document
+from models.consultas import objectid_to_str
 
-if TYPE_CHECKING:
-    from models.consultas import Consulta
 
+# Modelo base de Paciente
 class PacienteBase(BaseModel):
+    id: Optional[str] = Field(default_factory=lambda: str(ObjectId()), alias="_id")
     nome: str
     telefone: str
     email: Optional[EmailStr]
@@ -15,29 +16,55 @@ class PacienteBase(BaseModel):
     peso: Optional[float]
     altura: Optional[float]
     problemas_de_saude: Optional[str]
+    data_criacao: Optional[datetime]
 
+    class Config:
+        from_attributes = True  # Facilita a conversão de objetos do banco para o modelo Pydantic
+
+# Modelo para criação de paciente
 class PacienteCreate(PacienteBase):
     pass
 
+# Modelo para retorno de paciente
 class PacienteRetorno(PacienteBase):
-    id: int
-    data_criacao: datetime
+    id: Optional[str] = Field(default_factory=lambda: str(ObjectId()))
+    data_criacao: Optional[datetime]
 
     class Config:
+        populate_by_name = True
         from_attributes = True
+        arbitrary_types_allowed=True
+        json_encoders = {
+            ObjectId: str
+        }
 
-# Tabela para o relacionamento entre Paciente e Médico
-class PacienteMedico(SQLModel, table=True):
-    paciente_id: int = Field(foreign_key="paciente.id", primary_key=True)
-    medico_id: int = Field(foreign_key="medico.id", primary_key=True)
+# Modelo Beanie para paciente com acesso ao MongoDB
+class Paciente(PacienteBase, Document):
+    id: str  # ID no MongoDB
+    data_criacao: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
-class Paciente(PacienteBase, SQLModel, table=True):
-    id: int = Field(default=None, primary_key=True)
-    data_criacao: datetime = Field(default_factory=datetime.utcnow)
+    consultas: List[str] = []  # Lista de ObjectId das consultas
+    medicos: List[str] = []  # Lista de ObjectId dos médicos
 
-    consultas: List["Consulta"] = Relationship(back_populates="paciente")
-    
-    medicos: List["Medico"] = Relationship(back_populates="pacientes", link_model=PacienteMedico)  # link_model faz a ligação com PacienteMedico
+    class Settings:
+        collection = "pacientes"  # Nome da coleção no MongoDB
 
+    class Config:
+        populate_by_name = True
+        from_attributes = True
+        arbitrary_types_allowed=True
+        json_encoders = {
+            ObjectId: str
+        }
+
+# Modelo que inclui consultas para pacientes
 class PacienteComConsultas(PacienteRetorno):
-    consultas: List["Consulta"]
+    consultas: List[str] = [] # Agora armazena ObjectIds das consultas
+
+    class Config:
+        populate_by_name = True
+        from_attributes = True
+        arbitrary_types_allowed=True
+        json_encoders = {
+            ObjectId: str
+        }

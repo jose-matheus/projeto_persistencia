@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from models.consultas import ConsultaCreate, Consulta
+from models.consultas import ConsultaCreate, Consulta, ConsultaResponse
 from models.paciente import Paciente
 from services.consultas import (
     adicionar_consulta_db, listar_consultas_db, buscar_consulta_por_id_db,
@@ -8,35 +7,36 @@ from services.consultas import (
     listar_pacientes_sem_consultas_db, listar_consultas_por_periodo_db,
     listar_consultas_com_pacientes
 )
-from database import get_db
+from database.database import get_db  # Função que retorna a conexão assíncrona do Beanie.
 from datetime import datetime
-
+from typing import List
+from beanie import PydanticObjectId
 
 router = APIRouter()
 
 # Rota para criar a consulta
 @router.post("/consultas/", response_model=Consulta)
-def criar_consulta(consulta: ConsultaCreate, db: Session = Depends(get_db)):
+async def criar_consulta(consulta: ConsultaCreate):
     try:
-        return adicionar_consulta_db(consulta, db)
+        return await adicionar_consulta_db(consulta)
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao criar consulta: {str(e)}")
 
 # Rota para listar as consultas
-@router.get("/consultas/", response_model=dict)
-def listar_consultas(db: Session = Depends(get_db)):
+@router.get("/consultas/", response_model=ConsultaResponse)
+async def listar_consultas():
     try:
-        return listar_consultas_db(db)
+        return await listar_consultas_db()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar consultas: {str(e)}")
 
-# Rota para obter a constulta pelo ID
+# Rota para obter a consulta pelo ID
 @router.get("/consultas/{id}", response_model=Consulta)
-def buscar_consulta(id: int, db: Session = Depends(get_db)):
+async def buscar_consulta(id: str):
     try:
-        consulta = buscar_consulta_por_id_db(id, db)
+        consulta = await buscar_consulta_por_id_db(id)
         if not consulta:
             raise HTTPException(status_code=404, detail="Consulta não encontrada")
         return consulta
@@ -45,10 +45,9 @@ def buscar_consulta(id: int, db: Session = Depends(get_db)):
 
 # Rota para atualizar uma consulta
 @router.put("/consultas/{id}", response_model=Consulta)
-def atualizar_consulta(id: int, consulta: ConsultaCreate, db: Session = Depends(get_db)):
+async def atualizar_consulta(id: str, consulta: ConsultaCreate):
     try:
-        consulta_atualizada = atualizar_consulta_db(id, consulta, db)
-        
+        consulta_atualizada = await atualizar_consulta_db(id, consulta)
         if not consulta_atualizada:
             raise HTTPException(status_code=404, detail="Consulta não encontrada.")
         return consulta_atualizada
@@ -59,9 +58,9 @@ def atualizar_consulta(id: int, consulta: ConsultaCreate, db: Session = Depends(
 
 # Rota para deletar uma consulta
 @router.delete("/consultas/{id}", response_model=bool)
-def excluir_consulta(id: int, db: Session = Depends(get_db)):
+async def excluir_consulta(id: str):
     try:
-        sucesso = excluir_consulta_db(id, db)
+        sucesso = await excluir_consulta_db(id)
         if not sucesso:
             raise HTTPException(status_code=404, detail="Consulta não encontrada")
         return sucesso
@@ -70,35 +69,35 @@ def excluir_consulta(id: int, db: Session = Depends(get_db)):
 
 # Rota para listar as consultas pelo paciente
 @router.get("/pacientes/{paciente_id}/consultas/", response_model=list[Consulta])
-def listar_consultas_por_paciente(paciente_id: int, db: Session = Depends(get_db)):
+async def listar_consultas_por_paciente(paciente_id: str):
     try:
-        consultas = listar_consultas_por_paciente_db(paciente_id, db)
+        consultas = await listar_consultas_por_paciente_db(paciente_id)
         if not consultas:
             raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para este paciente")
         return consultas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar consultas: {str(e)}")
+    
 
 # Rota para listar todos os pacientes sem consultas
 @router.get("/pacientes/sem-consultas/", response_model=list[Paciente])
-def listar_pacientes_sem_consultas(db: Session = Depends(get_db)):
+async def listar_pacientes_sem_consultas():
     try:
-        pacientes = listar_pacientes_sem_consultas_db(db)
+        pacientes = await listar_pacientes_sem_consultas_db()
         if not pacientes:
             raise HTTPException(status_code=404, detail="Nenhum paciente sem consultas encontrado")
         return pacientes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")
 
-# Rota para listar todas as consultas entre um periodo
+# Rota para listar todas as consultas dentro de um periodo
 @router.get("/consultas/periodo/", response_model=list[Consulta])
-def listar_consultas_por_periodo(
+async def listar_consultas_por_periodo(
     inicio: datetime = Query(..., description="Data e hora de início no formato ISO8601"),
-    fim: datetime = Query(..., description="Data e hora de fim no formato ISO8601"),
-    db: Session = Depends(get_db)
+    fim: datetime = Query(..., description="Data e hora de fim no formato ISO8601")
 ):
     try:
-        consultas = listar_consultas_por_periodo_db(inicio, fim, db)
+        consultas = await listar_consultas_por_periodo_db(inicio, fim)
         if not consultas:
             raise HTTPException(
                 status_code=404,
@@ -112,12 +111,12 @@ def listar_consultas_por_periodo(
             status_code=500,
             detail=f"Erro ao buscar consultas: {str(e)}"
         )
-    
+
 # Rota para listar o paciente com todas as suas consultas
 @router.get("/medico/{medico_id}/consultas/", response_model=list[dict])
-def consultar_consultas_pacientes(medico_id: int, db: Session = Depends(get_db)):
+async def consultar_consultas_pacientes(medico_id: str):
     try:
-        consultas_com_pacientes = listar_consultas_com_pacientes(medico_id, db)
+        consultas_com_pacientes = await listar_consultas_com_pacientes(medico_id)
         if not consultas_com_pacientes:
             raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para o médico.")
         return consultas_com_pacientes

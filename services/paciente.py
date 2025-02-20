@@ -1,49 +1,62 @@
-from sqlalchemy.orm import Session
+from fastapi import HTTPException
 from models.paciente import Paciente, PacienteCreate, PacienteComConsultas
-from sqlmodel import select
-from sqlalchemy.orm import joinedload
+from models.consultas import Consulta
+from beanie import PydanticObjectId
+from bson import ObjectId
+from typing import List
 
 # Função para criar um paciente
-def criar_paciente_db(paciente: PacienteCreate, db: Session) -> Paciente:
+async def criar_paciente_db(paciente: PacienteCreate) -> Paciente:
     db_paciente = Paciente(**paciente.dict())
-    db.add(db_paciente)
-    db.commit()
-    db.refresh(db_paciente)
+    await db_paciente.insert()
     return db_paciente
 
 # Função para listar todos os pacientes
-def listar_pacientes_db(db: Session):
-    return db.execute(select(Paciente)).scalars().all()
+async def listar_pacientes_db() -> List[Paciente]:
+    try:
+        pacientes = await Paciente.find().to_list()
+        return pacientes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar pacientes: {str(e)}")
 
 # Função para obter um paciente pelo ID
-def obter_paciente_db(id: int, db: Session) -> Paciente:
-    return db.query(Paciente).filter(Paciente.id == id).first()
+async def obter_paciente_db(id: str) -> Paciente:
+    db_paciente = await Paciente.get(id)
+    if not db_paciente:
+        raise HTTPException(status_code=404, detail="Paciente não encontrado")
+    return db_paciente
 
 # Função para atualizar um paciente
-def atualizar_paciente_db(id: int, paciente: PacienteCreate, db: Session) -> Paciente:
-    db_paciente = db.query(Paciente).filter(Paciente.id == id).first()
-    if db_paciente:
-        for key, value in paciente.dict().items():
-            setattr(db_paciente, key, value)
-        db.commit()
-        db.refresh(db_paciente)
-        return db_paciente
-    return None
+async def atualizar_paciente_db(id: str, paciente: PacienteCreate) -> Paciente:
+    paciente_db = await Paciente.get(id)
+    if not paciente_db:
+        raise HTTPException(status_code=404, detail="Paciente não encontrado")
+    
+    # Atualiza o paciente com os dados fornecidos
+    await paciente_db.update({"$set": paciente.dict(exclude_unset=True)})
+    return paciente_db
 
 # Função para deletar um paciente
-def deletar_paciente_db(id: int, db: Session) -> bool:
-    db_paciente = db.query(Paciente).filter(Paciente.id == id).first()
-    if db_paciente:
-        db.delete(db_paciente)
-        db.commit()
-        return True
-    return False
+async def deletar_paciente_db(id: str) -> bool:
+    paciente = await Paciente.get(id)
+    if not paciente:
+        return False
+    await paciente.delete()
+    return True
 
-#Função para listar o paciente com todas as suas consultas usando o JoinedLoad
-def obter_paciente_com_consultas_db(id: int, db: Session) -> Paciente:
-    return (
-        db.query(Paciente)
-        .options(joinedload(Paciente.consultas))
-        .filter(Paciente.id == id)
-        .first()
-    )
+# Função para listar o paciente com todas as suas consultas
+async def obter_paciente_com_consultas_db(id: str) -> PacienteComConsultas:
+    paciente = await Paciente.get(id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente não encontrado")
+
+    # Assumindo que você tenha um relacionamento entre paciente e consultas
+    consultas = await Consulta.find({"id": {"$in": paciente.consultas}}).to_list()
+
+
+    paciente_dict = paciente.dict()
+    paciente_dict.pop("consultas", None)  # Remove a chave 'consultas' se existir
+
+    paciente_com_consultas = PacienteComConsultas(consultas=consultas, **paciente_dict)
+    
+    return paciente_com_consultas
