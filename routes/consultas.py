@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import List
 from beanie import PydanticObjectId
 
-router = APIRouter()
+router = APIRouter(tags = ["Consultas"])
 
 # Rota para criar a consulta
 @router.post("/consultas/", response_model=Consulta)

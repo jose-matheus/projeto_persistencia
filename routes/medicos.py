@@ -9,7 +9,7 @@ from models.medicos import MedicoCreate, MedicoRetorno
 from database.database import get_db  # Função que retorna a conexão assíncrona do Beanie.
 from typing import List, Dict
 
-router = APIRouter()
+router = APIRouter(tags = ["Medicos"])
 
 # Rota para criar médico
 @router.post("/medicos/", response_model=MedicoRetorno)

@@ -11,7 +11,7 @@ from services.paciente import (
 from models.paciente import PacienteCreate, PacienteRetorno, PacienteComConsultas
 from database.database import get_db
 
-router = APIRouter()
+router = APIRouter(tags = ["Pacientes"])
 
 # Rota para criar paciente
 @router.post("/pacientes/", response_model=PacienteRetorno)
