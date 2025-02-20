@@ -3,10 +3,9 @@ from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from models.paciente import Paciente  # Apenas para verificar tipos no editor
+    from models.paciente import Paciente
 
 
-# Modelo de Consulta
 class Consulta(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     paciente_id: int = Field(foreign_key="paciente.id")
@@ -14,13 +13,10 @@ class Consulta(SQLModel, table=True):
     data_hora: datetime
     status: str  # Exemplo: "Agendada", "Cancelada", "Concluída"
     observacoes: str = ""
-
-    # Relacionamentos
-    
+   
     paciente: "Paciente" = Relationship(back_populates="consultas")
     medico: "Medico" = Relationship(back_populates="consultas")
 
-# Pydantic schema para criação de consulta
 class ConsultaCreate(SQLModel):
     paciente_id: int
     medico_id: int

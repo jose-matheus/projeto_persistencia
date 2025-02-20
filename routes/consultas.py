@@ -14,70 +14,61 @@ from datetime import datetime
 
 router = APIRouter()
 
+# Rota para criar a consulta
 @router.post("/consultas/", response_model=Consulta)
 def criar_consulta(consulta: ConsultaCreate, db: Session = Depends(get_db)):
     try:
-        # Tentar adicionar a consulta
         return adicionar_consulta_db(consulta, db)
     except HTTPException as e:
-        # Levanta um erro se o médico não for encontrado
         raise e
     except Exception as e:
-        # Erro geral ao criar a consulta
         raise HTTPException(status_code=500, detail=f"Erro ao criar consulta: {str(e)}")
 
+# Rota para listar as consultas
 @router.get("/consultas/", response_model=dict)
 def listar_consultas(db: Session = Depends(get_db)):
     try:
-        # Lista todas as consultas
         return listar_consultas_db(db)
     except Exception as e:
-        # Erro geral ao listar consultas
         raise HTTPException(status_code=500, detail=f"Erro ao listar consultas: {str(e)}")
 
+# Rota para obter a constulta pelo ID
 @router.get("/consultas/{id}", response_model=Consulta)
 def buscar_consulta(id: int, db: Session = Depends(get_db)):
     try:
-        # Busca a consulta pelo ID
         consulta = buscar_consulta_por_id_db(id, db)
         if not consulta:
-            # Caso não encontre a consulta, retorna erro 404
             raise HTTPException(status_code=404, detail="Consulta não encontrada")
         return consulta
     except Exception as e:
-        # Erro geral ao buscar a consulta
         raise HTTPException(status_code=500, detail=f"Erro ao buscar consulta: {str(e)}")
 
+# Rota para atualizar uma consulta
 @router.put("/consultas/{id}", response_model=Consulta)
 def atualizar_consulta(id: int, consulta: ConsultaCreate, db: Session = Depends(get_db)):
     try:
-        # Tentar atualizar a consulta
         consulta_atualizada = atualizar_consulta_db(id, consulta, db)
         
         if not consulta_atualizada:
-            # Caso a consulta não seja encontrada, retorna erro 404
             raise HTTPException(status_code=404, detail="Consulta não encontrada.")
         return consulta_atualizada
     except HTTPException as e:
-        # Levanta um erro se o médico não for encontrado
         raise e
     except Exception as e:
-        # Erro geral ao atualizar a consulta
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar consulta: {str(e)}")
 
+# Rota para deletar uma consulta
 @router.delete("/consultas/{id}", response_model=bool)
 def excluir_consulta(id: int, db: Session = Depends(get_db)):
     try:
-        # Tenta excluir a consulta
         sucesso = excluir_consulta_db(id, db)
         if not sucesso:
-            # Caso não encontre a consulta para excluir, retorna erro 404
             raise HTTPException(status_code=404, detail="Consulta não encontrada")
         return sucesso
     except Exception as e:
-        # Erro geral ao excluir a consulta
         raise HTTPException(status_code=500, detail=f"Erro ao excluir consulta: {str(e)}")
 
+# Rota para listar as consultas pelo paciente
 @router.get("/pacientes/{paciente_id}/consultas/", response_model=list[Consulta])
 def listar_consultas_por_paciente(paciente_id: int, db: Session = Depends(get_db)):
     try:
@@ -88,6 +79,7 @@ def listar_consultas_por_paciente(paciente_id: int, db: Session = Depends(get_db
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar consultas: {str(e)}")
 
+# Rota para listar todos os pacientes sem consultas
 @router.get("/pacientes/sem-consultas/", response_model=list[Paciente])
 def listar_pacientes_sem_consultas(db: Session = Depends(get_db)):
     try:
@@ -97,7 +89,8 @@ def listar_pacientes_sem_consultas(db: Session = Depends(get_db)):
         return pacientes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")
-    
+
+# Rota para listar todas as consultas entre um periodo
 @router.get("/consultas/periodo/", response_model=list[Consulta])
 def listar_consultas_por_periodo(
     inicio: datetime = Query(..., description="Data e hora de início no formato ISO8601"),
@@ -113,14 +106,14 @@ def listar_consultas_por_periodo(
             )
         return consultas
     except HTTPException as e:
-        raise e  # Relevanta erro HTTP específico.
+        raise e
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao buscar consultas: {str(e)}"
         )
     
-
+# Rota para listar o paciente com todas as suas consultas
 @router.get("/medico/{medico_id}/consultas/", response_model=list[dict])
 def consultar_consultas_pacientes(medico_id: int, db: Session = Depends(get_db)):
     try:

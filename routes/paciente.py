@@ -60,7 +60,8 @@ def deletar_paciente(id: int, db: Session = Depends(get_db)):
         return {"msg": "Paciente deletado com sucesso"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao deletar paciente: {str(e)}")
-    
+
+# Rota para listar os pacientes com suas consultas    
 @router.get("/pacientes/{id}/consultas", response_model=PacienteComConsultas)
 def obter_paciente_com_consultas(id: int, db: Session = Depends(get_db)):
     try:

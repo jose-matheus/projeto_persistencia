@@ -39,10 +39,11 @@ def deletar_paciente_db(id: int, db: Session) -> bool:
         return True
     return False
 
+#Função para listar o paciente com todas as suas consultas usando o JoinedLoad
 def obter_paciente_com_consultas_db(id: int, db: Session) -> Paciente:
     return (
         db.query(Paciente)
-        .options(joinedload(Paciente.consultas))  # Supondo que a relação seja "consultas"
+        .options(joinedload(Paciente.consultas))
         .filter(Paciente.id == id)
         .first()
     )

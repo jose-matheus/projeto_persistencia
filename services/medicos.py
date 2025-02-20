@@ -45,20 +45,18 @@ def deletar_medico_db(id: int, db: Session) -> bool:
 def obter_medico_por_nome_db(nome: str, db: Session):
     return db.query(Medico).filter(Medico.nome.ilike(f"%{nome}%")).all()
 
-
+#Função para listar os médicos por especialidade
 def listar_medicos_por_especialidade_db(especialidade: str, db: Session):
     return db.query(Medico).filter(Medico.especialidade.ilike(f"%{especialidade}%")).all()
 
+#Função para listar os pacientes de um médico
 def listar_pacientes_por_medico(medico_id: int, db: Session) -> List[Dict]:
-    
-    # Consulta para obter os pacientes associados ao médico
     statement = select(Paciente).join(PacienteMedico).where(PacienteMedico.medico_id == medico_id)
     pacientes = db.exec(statement).all()
 
     if not pacientes:
-        return []  # Retorna lista vazia se não houver pacientes encontrados para o médico
+        return [] 
 
-    # Constrói a lista de pacientes com as informações relevantes
     resultado = [
         {
             "paciente_id": paciente.id,
@@ -71,25 +69,21 @@ def listar_pacientes_por_medico(medico_id: int, db: Session) -> List[Dict]:
 
     return resultado
 
+#Função que vai associar o paciente ao médico da sua consulta
 def associar_paciente_a_medico(paciente_id: int, medico_id: int, db: Session):
-    # Buscando o paciente e o médico
     paciente = db.query(Paciente).filter(Paciente.id == paciente_id).first()
     medico = db.query(Medico).filter(Medico.id == medico_id).first()
     
-    # Verificando se o paciente e o médico existem
     if not paciente:
         raise ValueError(f"Paciente com ID {paciente_id} não encontrado.")
     if not medico:
         raise ValueError(f"Médico com ID {medico_id} não encontrado.")
     
-    # Verificando se a relação já existe
     if medico in paciente.medicos:
         raise ValueError(f"Paciente {paciente.nome} já está associado ao médico {medico.nome}.")
     
-    # Associando o paciente ao médico
     paciente.medicos.append(medico)
     
-    # Salvar as alterações no banco de dados
     db.add(paciente)
     db.commit()
     

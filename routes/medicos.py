@@ -59,7 +59,6 @@ def deletar_medico(id: int, db: Session = Depends(get_db)):
 @router.get("/medicos/buscar_por_nome/", response_model=list[MedicoRetorno])
 def obter_medico_por_nome(nome: str, db: Session = Depends(get_db)):
     try:
-        # Chama a função correta do repositório ou serviço
         medicos = obter_medico_por_nome_db(nome, db)
         if not medicos:
             raise HTTPException(status_code=404, detail="Nenhum médico encontrado com esse nome")
@@ -67,6 +66,7 @@ def obter_medico_por_nome(nome: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos pelo nome: {str(e)}")
 
+# Rota para listar os médicos pela sua especialidade
 @router.get("/medicos/especialidade/", response_model=list[MedicoRetorno])
 def listar_medicos_por_especialidade(especialidade: str, db: Session = Depends(get_db)):
     try:
@@ -76,21 +76,16 @@ def listar_medicos_por_especialidade(especialidade: str, db: Session = Depends(g
         return medicos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos por especialidade: {str(e)}")
-    
+
+# Rota para listar todos os pacientes de um médico    
 @router.get("/medicos/{medico_id}/pacientes", response_model=List[Dict])
 def obter_pacientes_por_medico(medico_id: int, db: Session = Depends(get_db)):
-    """
-    Endpoint para listar os pacientes de um médico específico.
-
-    :param medico_id: ID do médico.
-    :param db: Sessão do banco de dados.
-    :return: Lista de pacientes do médico.
-    """
     pacientes = listar_pacientes_por_medico(medico_id, db)
     if not pacientes:
         raise HTTPException(status_code=404, detail="Nenhum paciente encontrado para este médico.")
     return pacientes
-
+    
+# Rota para adicionar o paciente ao médico
 @router.post("/medicos/{medico_id}/pacientes/{paciente_id}")
 def adicionar_paciente_ao_medico(
     paciente_id: int,
