@@ -12,9 +12,10 @@ async def criar_paciente_db(paciente: PacienteCreate) -> Paciente:
     return db_paciente
 
 # Função para listar todos os pacientes
-async def listar_pacientes_db() -> List[Paciente]:
+async def listar_pacientes_db(skip: int = 0, limit: int = 10) -> List[Paciente]:
     try:
-        pacientes = await Paciente.find().to_list()
+        # Aplica os parâmetros de paginação no banco de dados
+        pacientes = await Paciente.find().skip(skip).limit(limit).to_list()
         return pacientes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar pacientes: {str(e)}")

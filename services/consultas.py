@@ -1,5 +1,5 @@
 from bson import ObjectId
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 from datetime import datetime
 from models.consultas import ConsultaCreate, ConsultaResponse
 from models.medicos import Medico
@@ -32,9 +32,14 @@ async def adicionar_consulta_db(consulta_data: ConsultaCreate):
     return nova_consulta
 
 # Função para listar todas as consultas
-async def listar_consultas_db():
-    consultas = await Consulta.find().to_list()
-    return ConsultaResponse(consultas=consultas, quantidade=len(consultas))
+async def listar_consultas_db(skip: int = Query(0, ge=0), limit: int = Query(10, le=100)):
+    try:
+        consultas = await Consulta.find().skip(skip).limit(limit).to_list()
+        
+        total_consultas = await Consulta.find().count()  
+        return ConsultaResponse(consultas=consultas, quantidade=total_consultas)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar consultas: {str(e)}")
 
 # Função para buscar consulta por ID
 async def buscar_consulta_por_id_db(id: str):
@@ -87,15 +92,17 @@ async def excluir_consulta_db(id: str):
     return True
 
 # Função para listar consultas de um paciente
-async def listar_consultas_por_paciente_db(paciente_id: str):
-    consultas = await Consulta.find({"paciente_id": str(paciente_id)}).to_list()
+async def listar_consultas_por_paciente_db(paciente_id: str, skip: int, limit: int):
+    consultas = await Consulta.find({"paciente_id": str(paciente_id)}).skip(skip).limit(limit).to_list()
     return consultas
 
-# Função para listar pacientes sem consultas
-async def listar_pacientes_sem_consultas_db():
-    pacientes = await Paciente.find().to_list()
+async def listar_pacientes_sem_consultas_db(skip: int, limit: int):
+    # Primeiramente, liste os pacientes com paginação
+    pacientes = await Paciente.find().skip(skip).limit(limit).to_list()
+    
     pacientes_sem_consultas = []
     for paciente in pacientes:
+        # Verifique se o paciente não tem consultas associadas
         consultas = await Consulta.find({"paciente_id": paciente.id}).to_list()
         if not consultas:
             pacientes_sem_consultas.append(paciente)
@@ -124,3 +131,49 @@ async def listar_consultas_com_pacientes(medico_id: str):
         resultado.append(consulta_info)
 
     return resultado
+
+async def contar_consultas_por_paciente(paciente_id: str) -> int:
+    # Contagem de consultas associadas ao paciente
+    count = await Consulta.find({"paciente_id": paciente_id}).count()
+    return count
+
+async def calcular_media_tempo_entre_consultas(paciente_id: str) -> float:
+    consultas = await Consulta.find({"paciente_id": paciente_id}).to_list()
+    
+    if len(consultas) < 2:
+        return 0  # Não há tempo suficiente para calcular a média
+    
+    # Ordena as consultas pela data de criação
+    consultas.sort(key=lambda consulta: consulta.data_hora)
+    
+    total_dias = 0
+    for i in range(1, len(consultas)):
+        # Calcula a diferença entre a data de duas consultas consecutivas
+        delta = consultas[i].data_hora - consultas[i - 1].data_hora
+        total_dias += delta.days
+    
+    media_dias = total_dias / (len(consultas) - 1)
+    return media_dias
+
+async def calcular_media_tempo_entre_consultas(paciente_id: str) -> float:
+    consultas = await Consulta.find({"paciente_id": paciente_id}).to_list()
+    
+    if len(consultas) < 2:
+        return 0  # Não há tempo suficiente para calcular a média
+    
+    # Ordena as consultas pela data de criação
+    consultas.sort(key=lambda consulta: consulta.data_hora)
+    
+    total_dias = 0
+    for i in range(1, len(consultas)):
+        # Calcula a diferença entre a data de duas consultas consecutivas
+        delta = consultas[i].data_hora - consultas[i - 1].data_hora
+        total_dias += delta.days
+    
+    media_dias = total_dias / (len(consultas) - 1)
+    return media_dias
+
+async def contar_consultas_por_paciente(paciente_id: str) -> int:
+    # Contagem de consultas associadas ao paciente
+    count = await Consulta.find({"paciente_id": paciente_id}).count()
+    return count

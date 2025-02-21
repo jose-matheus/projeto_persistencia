@@ -11,9 +11,12 @@ async def criar_medico_db(medico: MedicoCreate) -> Medico:
     await db_medico.insert()
     return db_medico
 
-# Função para listar todos os médicos
-async def listar_medicos_db():
-    return await Medico.find().to_list()
+async def listar_medicos_db(skip: int = 0, limit: int = 10) -> List[Medico]:
+    try:
+        # Aplica a paginação usando os parâmetros skip e limit
+        return await Medico.find().skip(skip).limit(limit).to_list()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar médicos: {str(e)}")
 
 # Função para obter um médico pelo ID
 async def obter_medico_db(id: str) -> Medico:
@@ -43,9 +46,14 @@ async def deletar_medico_db(id: str) -> bool:
 async def obter_medico_por_nome_db(nome: str):
     return await Medico.find({"nome": {"$regex": nome, "$options": "i"}}).to_list()
 
-# Função para listar os médicos por especialidade
-async def listar_medicos_por_especialidade_db(especialidade: str):
-    return await Medico.find({"especialidade": {"$regex": especialidade, "$options": "i"}}).to_list()
+# Função para listar médicos por especialidade com paginação
+async def listar_medicos_por_especialidade_db(especialidade: str, skip: int, limit: int):
+    try:
+        medicos = await Medico.find({"especialidade": {"$regex": especialidade, "$options": "i"}}).skip(skip).limit(limit).to_list()
+        return medicos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos por especialidade: {str(e)}")
+
 
 # Função para listar os pacientes de um médico
 async def listar_pacientes_por_medico(medico_id: str) -> List[Dict]:
@@ -75,3 +83,13 @@ async def associar_paciente_a_medico(paciente_id: str, medico_id: str):
         "paciente_nome": paciente.nome,  # Adicionando nome do paciente
         "medico_nome": medico.nome       # Adicionando nome do médico
         }
+
+async def contar_pacientes_por_medico(medico_id: str) -> int:
+    # Obtém o médico com base no ID fornecido
+    medico = await Medico.get(medico_id)
+    
+    if not medico:
+        raise HTTPException(status_code=404, detail="Médico não encontrado")
+    
+    # Retorna a quantidade de pacientes associados ao médico
+    return len(medico.pacientes)

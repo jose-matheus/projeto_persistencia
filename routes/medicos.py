@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from beanie import PydanticObjectId
 from services.medicos import (
     criar_medico_db, listar_medicos_db, obter_medico_db, atualizar_medico_db,
     deletar_medico_db, obter_medico_por_nome_db, listar_medicos_por_especialidade_db,
-    listar_pacientes_por_medico, associar_paciente_a_medico
+    listar_pacientes_por_medico, associar_paciente_a_medico, contar_pacientes_por_medico
 )
 from models.medicos import MedicoCreate, MedicoRetorno
 from database.database import get_db  # Função que retorna a conexão assíncrona do Beanie.
@@ -21,9 +21,11 @@ async def criar_medico(medico: MedicoCreate):
 
 # Rota para listar médicos
 @router.get("/medicos/", response_model=list[MedicoRetorno])
-async def listar_medicos():
+async def listar_medicos(skip: int = Query(0, ge=0), limit: int = Query(10, le=100)):
     try:
-        return await listar_medicos_db()
+        # Chama a função de consulta no banco com os parâmetros de paginação
+        medicos = await listar_medicos_db(skip=skip, limit=limit)
+        return medicos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar médicos: {str(e)}")
 
@@ -70,11 +72,11 @@ async def obter_medico_por_nome(nome: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar médicos pelo nome: {str(e)}")
 
-# Rota para listar os médicos pela sua especialidade
+# Rota para listar médicos por especialidade com paginação
 @router.get("/medicos/especialidade/", response_model=list[MedicoRetorno])
-async def listar_medicos_por_especialidade(especialidade: str):
+async def listar_medicos_por_especialidade(especialidade: str, skip: int = 0, limit: int = 10):
     try:
-        medicos = await listar_medicos_por_especialidade_db(especialidade)
+        medicos = await listar_medicos_por_especialidade_db(especialidade, skip, limit)
         if not medicos:
             raise HTTPException(status_code=404, detail="Nenhum médico encontrado para esta especialidade")
         return medicos
@@ -99,3 +101,11 @@ async def adicionar_paciente_ao_medico(paciente_id: str, medico_id: str):
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/medicos/{id}/quantidade_pacientes")
+async def get_quantidade_pacientes(id: str):
+    try:
+        quantidade = await contar_pacientes_por_medico(id)
+        return {"id": id, "quantidade_pacientes": quantidade}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao contar pacientes: {str(e)}")

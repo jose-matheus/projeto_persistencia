@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from beanie import PydanticObjectId
 from services.paciente import (
     criar_paciente_db,
@@ -23,9 +23,10 @@ async def criar_paciente(paciente: PacienteCreate):
 
 # Rota para listar pacientes
 @router.get("/pacientes/", response_model=list[PacienteRetorno])
-async def listar_pacientes(db=Depends(get_db)):
+async def listar_pacientes(skip: int = Query(0, ge=0), limit: int = Query(10, le=100), db=Depends(get_db)):
     try:
-        pacientes = await listar_pacientes_db()
+        # Chama o service passando os parâmetros de paginação
+        pacientes = await listar_pacientes_db(skip, limit)
         return pacientes
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar pacientes: {str(e)}")
@@ -72,3 +73,4 @@ async def obter_paciente_com_consultas(id: str):
         return paciente
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter paciente com consultas: {str(e)}")
+

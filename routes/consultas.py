@@ -5,7 +5,7 @@ from services.consultas import (
     adicionar_consulta_db, listar_consultas_db, buscar_consulta_por_id_db,
     atualizar_consulta_db, excluir_consulta_db, listar_consultas_por_paciente_db,
     listar_pacientes_sem_consultas_db, listar_consultas_por_periodo_db,
-    listar_consultas_com_pacientes
+    listar_consultas_com_pacientes, contar_consultas_por_paciente, calcular_media_tempo_entre_consultas
 )
 from database.database import get_db  # Função que retorna a conexão assíncrona do Beanie.
 from datetime import datetime
@@ -26,9 +26,10 @@ async def criar_consulta(consulta: ConsultaCreate):
 
 # Rota para listar as consultas
 @router.get("/consultas/", response_model=ConsultaResponse)
-async def listar_consultas():
+async def listar_consultas(skip: int = Query(0, ge=0), limit: int = Query(10, le=100)):
     try:
-        return await listar_consultas_db()
+        # Chama a função de consulta no banco com os parâmetros de paginação
+        return await listar_consultas_db(skip=skip, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar consultas: {str(e)}")
 
@@ -69,9 +70,9 @@ async def excluir_consulta(id: str):
 
 # Rota para listar as consultas pelo paciente
 @router.get("/pacientes/{paciente_id}/consultas/", response_model=list[Consulta])
-async def listar_consultas_por_paciente(paciente_id: str):
+async def listar_consultas_por_paciente(paciente_id: str, skip: int = Query(0, ge=0), limit: int = Query(10, le=100)):
     try:
-        consultas = await listar_consultas_por_paciente_db(paciente_id)
+        consultas = await listar_consultas_por_paciente_db(paciente_id, skip, limit)
         if not consultas:
             raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para este paciente")
         return consultas
@@ -81,9 +82,9 @@ async def listar_consultas_por_paciente(paciente_id: str):
 
 # Rota para listar todos os pacientes sem consultas
 @router.get("/pacientes/sem-consultas/", response_model=list[Paciente])
-async def listar_pacientes_sem_consultas():
+async def listar_pacientes_sem_consultas(skip: int = Query(0, ge=0), limit: int = Query(10, le=100)):
     try:
-        pacientes = await listar_pacientes_sem_consultas_db()
+        pacientes = await listar_pacientes_sem_consultas_db(skip, limit)
         if not pacientes:
             raise HTTPException(status_code=404, detail="Nenhum paciente sem consultas encontrado")
         return pacientes
@@ -111,14 +112,19 @@ async def listar_consultas_por_periodo(
             status_code=500,
             detail=f"Erro ao buscar consultas: {str(e)}"
         )
-
-# Rota para listar o paciente com todas as suas consultas
-@router.get("/medico/{medico_id}/consultas/", response_model=list[dict])
-async def consultar_consultas_pacientes(medico_id: str):
+    
+@router.get("/pacientes/{id}/contagem_consultas")
+async def get_contagem_consultas(id: str):
     try:
-        consultas_com_pacientes = await listar_consultas_com_pacientes(medico_id)
-        if not consultas_com_pacientes:
-            raise HTTPException(status_code=404, detail="Nenhuma consulta encontrada para o médico.")
-        return consultas_com_pacientes
+        contagem = await contar_consultas_por_paciente(id)
+        return {"id": id, "contagem_consultas": contagem}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar consultas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao contar consultas: {str(e)}")
+
+@router.get("/pacientes/{id}/media_tempo_consultas")
+async def get_media_tempo_consultas(id: str):
+    try:
+        media = await calcular_media_tempo_entre_consultas(id)
+        return {"id": id, "media_tempo_consultas": media}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao calcular média de tempo entre consultas: {str(e)}")
