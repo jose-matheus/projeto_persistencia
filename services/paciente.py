@@ -1,5 +1,8 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
+from datetime import datetime
 from models.paciente import Paciente, PacienteCreate, PacienteComConsultas
+from motor.motor_asyncio import AsyncIOMotorClient
+from typing import List, Dict
 from models.consultas import Consulta
 from beanie import PydanticObjectId
 from bson import ObjectId

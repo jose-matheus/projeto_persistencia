@@ -111,10 +111,16 @@ async def listar_pacientes_sem_consultas_db(skip: int, limit: int):
 
 # Função para listar todas as consultas dentro de um período
 async def listar_consultas_por_periodo_db(inicio: datetime, fim: datetime):
+    # Encontrando todas as consultas no período
     consultas = await Consulta.find({
         "data_hora": {"$gte": inicio, "$lte": fim}
     }).to_list()
-    return consultas
+
+    # Contando o número de consultas
+    contagem = len(consultas)
+
+    # Retornando tanto a lista de consultas quanto a contagem
+    return {"consultas": consultas, "contagem": contagem}
 
 # Função para listar consultas com pacientes para um médico
 async def listar_consultas_com_pacientes(medico_id: str):

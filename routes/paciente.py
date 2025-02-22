@@ -1,5 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from beanie import PydanticObjectId
+from datetime import datetime
+from motor.motor_asyncio import AsyncIOMotorClient
+from typing import List
+from typing import Dict
 from services.paciente import (
     criar_paciente_db,
     listar_pacientes_db,
@@ -73,4 +77,4 @@ async def obter_paciente_com_consultas(id: str):
         return paciente
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter paciente com consultas: {str(e)}")
-
+    

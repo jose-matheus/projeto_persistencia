@@ -92,19 +92,19 @@ async def listar_pacientes_sem_consultas(skip: int = Query(0, ge=0), limit: int 
         raise HTTPException(status_code=500, detail=f"Erro ao buscar pacientes: {str(e)}")
 
 # Rota para listar todas as consultas dentro de um periodo
-@router.get("/consultas/periodo/", response_model=list[Consulta])
+@router.get("/consultas/periodo/")
 async def listar_consultas_por_periodo(
     inicio: datetime = Query(..., description="Data e hora de início no formato ISO8601"),
     fim: datetime = Query(..., description="Data e hora de fim no formato ISO8601")
 ):
     try:
-        consultas = await listar_consultas_por_periodo_db(inicio, fim)
-        if not consultas:
+        resultado = await listar_consultas_por_periodo_db(inicio, fim)
+        if not resultado["consultas"]:
             raise HTTPException(
                 status_code=404,
                 detail="Nenhuma consulta encontrada no período especificado."
             )
-        return consultas
+        return resultado  # Retorna o dicionário com 'consultas' e 'contagem'
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -114,7 +114,7 @@ async def listar_consultas_por_periodo(
         )
     
 @router.get("/pacientes/{id}/contagem_consultas")
-async def get_contagem_consultas(id: str):
+async def contagem_consultas(id: str):
     try:
         contagem = await contar_consultas_por_paciente(id)
         return {"id": id, "contagem_consultas": contagem}
@@ -122,9 +122,10 @@ async def get_contagem_consultas(id: str):
         raise HTTPException(status_code=500, detail=f"Erro ao contar consultas: {str(e)}")
 
 @router.get("/pacientes/{id}/media_tempo_consultas")
-async def get_media_tempo_consultas(id: str):
+async def media_tempo_consultas(id: str):
     try:
         media = await calcular_media_tempo_entre_consultas(id)
         return {"id": id, "media_tempo_consultas": media}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao calcular média de tempo entre consultas: {str(e)}")
+    
