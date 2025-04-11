@@ -1,4 +1,4 @@
-# projeto_persistencia
+# API de Controle de Pacientes e Medicos
 Projeto de Desenvolvimento para a disciplina de "Desenvolvimento para Persistência da UFC "
 
 
