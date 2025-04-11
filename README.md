@@ -1,5 +1,5 @@
 # API de Controle de Pacientes e Medicos
-Projeto de Desenvolvimento para a disciplina de "Desenvolvimento para Persistência da UFC "
+Uma API REST utilizando Python com FastAPI para controle de consultas de pacientes de uma clínica, foi utilizado mongodb como banco de dados, além de uma versão totalmente no sql. Projeto de Desenvolvimento para a disciplina de "Desenvolvimento para Persistência da UFC "
 
 
 
